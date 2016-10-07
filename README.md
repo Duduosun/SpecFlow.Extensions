@@ -1,7 +1,42 @@
-# SpecFlow.WebExtension
-web extension methods for SpecFlow Web and Selenium
+# SpecFlow.Extensions
+extensions for SpecFlow and Selenium
 
-This project will be a container for the SpecFlow Web / Selenium extension code that I develop while
+# Key Features
+* <b>Automapper</b> - can be used to automatically fill in PageObjects, Contexts, and other test objects using SpecFlow tables from Feature files or other objects (you could use a Context to fill in a PageObject, for example). For clarification, contexts are the objects that are passed into StepDefinition/Hook classes when using Context Injection.
+
+* <b>Tests should require fewer explicit waits</b> - the framework handles a lot of "timeout", "timing cracks", "invalid state", "stale element", and "not found" issues using smart or implicit waits. This reduces the need to use hardcoded or explicit waits in test code. Few waits means less code. Less code means less bugs. Less bugs means more reliable and maintainable automation.
+
+* <b>Test Suite of "badly" behaving html pages</b> - you can use the sample of "bad" html pages to compare this framework to your own (two frameworks enter, one framework leaves). These pages are designed to expose gaps in automation frameworks (they will break you... on purpose). Also, they serve as an example as to how to use this framework.
+<ol><b><u>Example "bad" pages:</u></b>
+<li>open and close slow modals</li>
+<li>modals that switch pages</li>
+<li>slow drop down lists</li>
+<li>slow grids that load large data sets</li>
+<li>pages that refresh</li>
+<li>collapsing and expanding elements</li>
+</ol>
+
+* <b>Database Helper</b> - not a replacement for a DAL or api...but a lot of times you don't even have that so having a convenient way to work with SQL statements can come in handy every now and then.
+
+* <b>String Extensions and Randomize</b> - some common string manipulation and randomization methods
+
+* <b>ComparisonMismatch</b> - helps keep your Assert statements in your Thens and also allows you to show all "mismatches" instead of failing on the first mismatch. Use ComparisonMismatch as you would Assert.AreEqual() [etc.] and then, for the final assert in your Then, use Assert.IsEmpty(myComparisonMismatch.Mismatches()) to get a list of all the mismatches.
+
+* <b>Empty Scenarios fail</b> - if a scenario has no steps, it will fail instead of pass
+
+* <b>Example WebDriverHooks</b> - browser windows can be maxmized, minimized for smaller screens, reused, closed after scenarios, and so on by using hooks in feature files
+
+* <b>Templates for building PageFactory, DriverFactory, WebDriver wrappers (PortalDriver for your AUT), etc.</b>
+
+* <b>Tester objects</b> - embed hashes in test data that can be used to identify which tests created it, external JSON files for user credentials (login using roles instead of hardcoded username/password for maintainable/scalable feature files), tester emails based on machine name so that the "current tester" receives email alerts instead of a hardcoded email address, etc.
+
+* <b>WaitForPageLoad, WaitForUrlToChange, WaitForElement, FindElementOrNull</b>
+
+* <b>extended Bys</b> to find by Attribute (single or list), Column, or Text
+
+# Use
+
+This project will be a container for the SpecFlow / Selenium extension code that I develop while
 using said software tools. Too often I find myself looking up webdriver code on the internet and I'd
 like to keep everything I use in one convenient and portable library (for future use of course).
 
@@ -10,61 +45,4 @@ like to keep everything I use in one convenient and portable library (for future
 For starters, this is not a "plug-and-play one size fits all" test framework. This is a "modify and 
 integrate into your test environment" test framework. That said, you'll most likely have to create
 and fill in code to get portions of SpecFlow.Extensions to work for your particular situation. It is,
-however, IMHO, a good place to start.
-
-# A note about Page Objects, ByEx, and the new Find method:
-
-I'm assuming that you're already familiar with and/or following the best practice of using Page Objects
-for your SpecFlow Web or Selenium webdriver automation. That being the case: I worked at a company
-where Page Objects contained public properties that returned IWebElements. For example, a LoginPage
-object might look like:
-
-<code><pre>
-  class LoginPage
-  {
-    private IDriver _driver;
-    LoginPage(IDriver driver)
-    {
-      _driver = driver;
-    }
-    public IWebElement Username { return _driver.FindElement(By.Id("username")); }
-    public IWebElement Password { return _driver.FindElement(By.Id("password")); }
-  }
-</pre></code>
-
-~~The problem with this is that a future attempt to implement retry logic was a nightmare. Because the
-Page Object called FindElement, the ability to know which By was used to identify the IWebElement
-was contained entirely in the Page Object.~~ Furthermore, in order to test the negative case (a
-IWebElement is not found), a FindElementSafe method had to be implemented that would return null
-if the underlying FindElement method threw an exception. More often than not, the null value that
-was returned would inevitably wreck havoc somewhere else in the test code or result in cryptic
-"Object not set to a reference" errors during runtime.
-
-~~The problem is that the Page Object is fulfilling two duties. For one, the Page Object knows how to
-identify the IWebElement and, two, the Page Object took it upon itself to retreive the IWebElement
-for us. IMHO, the Page Object, like all classes, should only have one responsibility. That is, to
-tell us how to identify an IWebElement.~~
-
-<strong>Edit:</strong> I recommend the Page Object to return a ByEx for elements you want to negative test, check the existence of, or check the non-existence. Continue to use IWebElement, SelectElement, *Element, etc. for elements you expect to always be there and are required for the test to be meaningful. For example, a progress bar or fading message might be a good candidate for a ByEx property while a username and password field should be IWebElement properties since a test that couldn't login would be pretty meaningless.
-
-<strong>On Second Thought:</strong> I ran into a situation where an element existed and then the page reload and the element continued to exist. The call to Find/FindElement found the element prior to the page reload. The subsequent call to Click then failed due to the timing crack (StaleElementException). The Click was performed on a IWebElement returned by a Page Object in the step definition and failed the entire test because there was no "Retry Click" logic in the step definition. Had the PageObject returned a ByEx, the IWrapWebDriver.Click() method could have been called which <strong>does</strong> contain retry logic.
-
-To that end, I created a Find method that takes a ByEx (I like to call it the WebElementIdentifier).
-Test code that access the Page Object's properties can then use the ByEx to Find, WaitFor, or make
-sure that IWebElements do not exist. As an added benefit, the resulting Page Object is simpler:
-<pre><code>
-  class LoginPage
-  {
-    public ByEx Username { return new ByEx(By.Id("username")); }
-    public ByEx Password { return new ByEx(By.Id("password")); }
-  }
-</code></pre>
-
-Now, in the calling code, it is possible to (psuedo code):
-  <pre><code>WaitFor(LoginPage.Username)</code></pre>
-  or
-  <pre><code>DoesNotExist(LoginPage.Username)</code></pre>
-  
-The Find method is also smarter in that it can use an appropriate FindElementBy* method depending on
-the properties that are set on the ByEx. So far, text and one attribute is supported. I will add
-support for multiple attributes in the near future.
+however, IMHO, a good place to start. I prefer to consider it a toolkit.
